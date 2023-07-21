@@ -1,0 +1,92 @@
+# Stage 1: Build pgpool2
+FROM alpine:3.17 as builder
+
+ARG PGPOOL_BRANCH=hg-private-deploy
+
+ENV PGPOOL_INSTALL_DIR /opt/pgpool-II
+
+# Install dependencies required for building pgpool2
+RUN set -eux \
+    && apk add --no-cache --virtual build-dependencies \
+        bison \
+        flex \
+        file \
+        gcc \
+        g++ \
+        libbsd-dev \
+        linux-headers \
+        make \
+        patch \
+        openssl-dev \
+        postgresql-dev \
+        git
+
+# Clone the pgpool2 repository
+RUN git clone https://github.com/HighgoSoftware/pgpool2.git /tmp/pgpool \
+    && cd /tmp/pgpool \
+    && git checkout ${PGPOOL_BRANCH}
+
+# Copy patch file and apply it
+COPY fix_compile_error.patch /tmp/pgpool/
+RUN cd /tmp/pgpool \
+    && patch -p1 < fix_compile_error.patch
+
+# Build pgpool2
+RUN cd /tmp/pgpool \
+    && ./configure \
+        --prefix=${PGPOOL_INSTALL_DIR} \
+        --with-openssl \
+    && make -j "$(nproc)" \
+    && make install
+
+# Stage 2: Create the final minimal image
+FROM alpine:3.17
+
+ENV PGPOOL_INSTALL_DIR /opt/pgpool-II
+ENV PGPOOL_CONF_VOLUME /config
+
+# Create postgres user used to start Pgpool-II
+RUN set -ex; \
+    addgroup -g 70 -S postgres; \
+    adduser -u 70 -S -D -G postgres -H -h /var/lib/pgsql -s /bin/sh postgres; \
+    mkdir -p /var/lib/pgsql; \
+    chown -R postgres:postgres /var/lib/pgsql
+
+# Install necessary runtime packages
+RUN set -eux \
+    && apk add --no-cache \
+        bash \
+        openssl \
+        postgresql \
+        sudo
+
+# Copy the pgpool-II installation from the builder stage
+COPY --from=builder ${PGPOOL_INSTALL_DIR} ${PGPOOL_INSTALL_DIR}
+
+# Install kubectl
+RUN set -eux \
+    && apk add --no-cache curl \
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin
+
+# Create required directories and set ownership
+RUN set -eux \
+    && mkdir /var/run/pgpool \
+    && mkdir /var/run/postgresql \
+    && chown -R postgres:postgres /var/run/pgpool /var/run/postgresql ${PGPOOL_INSTALL_DIR} \
+    && echo 'postgres ALL=NOPASSWD: /sbin/ip' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /usr/sbin/arping' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
+
+USER postgres
+
+# Copy entrypoint and start scripts
+COPY entrypoint.sh ${PGPOOL_INSTALL_DIR}/bin/
+COPY start.sh ${PGPOOL_INSTALL_DIR}/bin/
+
+ENTRYPOINT ["/opt/pgpool-II/bin/entrypoint.sh"]
+CMD ["/opt/pgpool-II/bin/start.sh"]
+
+EXPOSE 9999
+EXPOSE 9899
+

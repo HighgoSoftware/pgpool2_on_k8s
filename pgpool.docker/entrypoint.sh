@@ -220,10 +220,10 @@ validate_pgpool_settings() {
     # Validate backend_hostname0
     backend_hostname0=$(grep -E "^backend_hostname0\s*=" ${pgpool_conf} | tail -1 | sed -e "s/^backend_hostname0\s*=\s*'\(.*\)'/\1/g")
 
-    if [[ -z "${backend_hostname0}" ]]; then
-        echo "ERROR: backend_hostname0 is not set, exiting..."
-        exit 1
-    fi
+    #if [[ -z "${backend_hostname0}" ]]; then
+    #    echo "ERROR: backend_hostname0 is not set, exiting..."
+    #    exit 1
+    #fi
 
     # Validate failover_on_backend_error
     # If "failover_on_backend_error = on" isn't specified, turn it off.
