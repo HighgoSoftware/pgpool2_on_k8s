@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Start cron daemon
+echo "Starting cronjob..."
+sudo crontab -u postgres /var/lib/pgsql/crontab/cronjob
+sudo crond -b -l 4
+
 # Start Pgpool-II
 echo "Starting Pgpool-II..."
 ${PGPOOL_INSTALL_DIR}/bin/pgpool -n \

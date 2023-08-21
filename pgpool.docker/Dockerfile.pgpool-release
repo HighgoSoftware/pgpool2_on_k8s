@@ -58,6 +58,8 @@ RUN set -eux \
         bash \
         openssl \
         postgresql \
+        dcron \
+        shadow \
         sudo
 
 # Copy the pgpool-II installation from the builder stage
@@ -76,7 +78,21 @@ RUN set -eux \
     && mkdir /var/run/postgresql \
     && chown -R postgres:postgres /var/run/pgpool /var/run/postgresql ${PGPOOL_INSTALL_DIR} \
     && echo 'postgres ALL=NOPASSWD: /sbin/ip' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /usr/sbin/crond' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /usr/bin/crontab' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /usr/bin/which' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /usr/bin/vi' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /bin/ls' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /bin/chown' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
+    && echo 'postgres ALL=NOPASSWD: /bin/chmod' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 \
     && echo 'postgres ALL=NOPASSWD: /usr/sbin/arping' | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
+
+# Set up the cronjob for postgres
+RUN mkdir /var/lib/pgsql/crontab
+COPY pgpool_cronjob.template /var/lib/pgsql/crontab/cronjob
+RUN chmod 0644 /var/lib/pgsql/crontab/cronjob \
+    && chown -R postgres:postgres /var/lib/pgsql/crontab
+#    && crontab -u postgres /var/lib/pgsql/crontab/cronjob
 
 USER postgres
 

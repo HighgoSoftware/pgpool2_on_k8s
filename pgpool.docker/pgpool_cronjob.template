@@ -1,0 +1,3 @@
+# Cron job example, to check the log: 
+# kubectl exec -it pgpool-pod -- tail -f /var/log/postgresql/messages
+* * * * * echo "$(date) [CRONJOB] job 1 says hello" >> /var/log/postgresql/messages
