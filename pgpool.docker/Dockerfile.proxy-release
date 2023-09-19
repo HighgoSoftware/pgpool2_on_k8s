@@ -100,10 +100,10 @@ USER postgres
 
 # Copy entrypoint and start scripts
 COPY entrypoint.sh ${PGPOOL_INSTALL_DIR}/bin/
-COPY start.sh ${PGPOOL_INSTALL_DIR}/bin/
+COPY start_proxy.sh ${PGPOOL_INSTALL_DIR}/bin/
 
 ENTRYPOINT ["/opt/pgpool-II/bin/entrypoint.sh"]
-CMD ["/opt/pgpool-II/bin/start.sh"]
+CMD ["/opt/pgpool-II/bin/start_proxy.sh"]
 
 EXPOSE 9999
 EXPOSE 9899
